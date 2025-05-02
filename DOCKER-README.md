@@ -75,6 +75,33 @@ You can customize the deployment by modifying the environment variables in the `
 - `SESSION_SECRET`: Secret for session encryption
 - `NODE_ENV`: Application environment (production/development)
 
+## Troubleshooting Network Issues
+
+If you encounter network errors during the build process (especially with npm install):
+
+1. **Use a package proxy or mirror**:
+   ```
+   # In .npmrc
+   registry=https://registry.npmmirror.com/
+   ```
+
+2. **Build with an alternative DNS**:
+   ```
+   docker-compose build --build-arg "npm_config_registry=https://registry.npmmirror.com/"
+   ```
+
+3. **Try using a VPN or different network connection**
+
+4. **Use Docker's buildkit with network retries**:
+   ```
+   DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker-compose up -d --build
+   ```
+
+5. **Build behind a proxy**:
+   ```
+   docker-compose build --build-arg http_proxy=http://proxy-url:port --build-arg https_proxy=http://proxy-url:port
+   ```
+
 ## Common Commands
 
 - Start the application:

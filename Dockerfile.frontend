@@ -2,11 +2,17 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files and npm config
+COPY package*.json .npmrc ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies with retry logic and increased network timeout
+RUN npm config set registry https://registry.npmjs.org/ && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm config set network-timeout 300000 && \
+    npm install --no-fund --loglevel verbose || \
+    (sleep 5 && npm install --no-fund --loglevel verbose) || \
+    (sleep 10 && npm install --no-fund --loglevel verbose)
 
 # Copy the rest of the frontend code
 COPY client/ ./client/
