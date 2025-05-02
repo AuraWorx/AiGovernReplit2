@@ -1,0 +1,37 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install netcat for network connectivity checks
+RUN apk add --no-cache netcat-openbsd
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the backend code
+COPY server/ ./server/
+COPY shared/ ./shared/
+COPY types/ ./types/
+COPY db/ ./db/
+COPY drizzle.config.ts .
+COPY tsconfig.json .
+
+# Copy entry point script
+COPY docker-entrypoint.sh .
+RUN chmod +x docker-entrypoint.sh
+
+# Create uploads directory
+RUN mkdir -p uploads
+
+# Expose port
+EXPOSE 5000
+
+# Set environment variables
+ENV NODE_ENV=production
+
+# Use entry point script
+ENTRYPOINT ["./docker-entrypoint.sh"]
+CMD ["npm", "run", "dev"] 

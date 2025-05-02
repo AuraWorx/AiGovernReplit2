@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://backend:5000
+    depends_on:
+      - backend
+    networks:
+      - ai-govern-network
+    volumes:
+      - frontend-build:/app/dist
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://ai_govern_user:ai_govern_password@postgres:5432/ai_govern
+      - SESSION_SECRET=your_strong_random_session_secret
+      - NODE_ENV=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ai-govern-network
+    volumes:
+      - uploads:/app/uploads
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=ai_govern_user
+      - POSTGRES_PASSWORD=ai_govern_password
+      - POSTGRES_DB=ai_govern
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./grant-permissions.sql:/docker-entrypoint-initdb.d/grant-permissions.sql
+    networks:
+      - ai-govern-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_govern_user -d ai_govern"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+networks:
+  ai-govern-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  uploads:
+  frontend-build: 
