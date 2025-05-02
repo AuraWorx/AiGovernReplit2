@@ -7,6 +7,7 @@ import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { handleWebhookRequest, createWebhook, getWebhooks, getWebhook } from "./webhooks";
 import { processData } from "./processors";
+import { upload as documentUpload, handleFileUpload } from "./document-processors/upload-handler";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -300,6 +301,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Internal server error" });
     }
   });
+
+  // Document upload routes for PII detection
+  app.post(
+    "/api/uploads/documents", 
+    requireAuth, 
+    documentUpload.array("files", 10), // Accept up to 10 files
+    handleFileUpload
+  );
 
   const httpServer = createServer(app);
 

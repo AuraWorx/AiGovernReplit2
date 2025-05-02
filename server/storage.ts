@@ -30,6 +30,8 @@ export interface IStorage {
   createWebhook(webhook: any): Promise<any>;
   getWebhook(id: number, tenantId: number): Promise<any>;
   getWebhooks(tenantId: number): Promise<any[]>;
+  storeWebhookData(webhookId: number, payload: any): Promise<any>;
+  getWebhookDataById(id: number, tenantId: number): Promise<any>;
   
   // Analysis operations
   createAnalysis(analysis: any): Promise<any>;
@@ -126,19 +128,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDatasets(tenantId: number, limit?: number): Promise<any[]> {
-    const query = db.query.datasets.findMany({
+    return await db.query.datasets.findMany({
       where: eq(datasets.tenantId, tenantId),
       orderBy: desc(datasets.createdAt),
       with: {
         uploadedBy: true
-      }
+      },
+      limit: limit
     });
-
-    if (limit) {
-      query.limit(limit);
-    }
-
-    return await query;
   }
 
   // Webhook operations
@@ -179,6 +176,23 @@ export class DatabaseStorage implements IStorage {
     return data;
   }
 
+  async getWebhookDataById(id: number, tenantId: number): Promise<any> {
+    // First find the webhook data
+    const data = await db.query.webhookData.findFirst({
+      where: eq(webhookData.id, id),
+      with: {
+        webhook: true
+      }
+    });
+    
+    // Then check if it belongs to the specified tenant
+    if (data && data.webhook && data.webhook.tenantId === tenantId) {
+      return data;
+    }
+    
+    return null;
+  }
+
   // Analysis operations
   async createAnalysis(analysis: any): Promise<any> {
     const [newAnalysis] = await db.insert(analyses).values(analysis).returning();
@@ -200,21 +214,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAnalyses(tenantId: number, limit?: number): Promise<any[]> {
-    const query = db.query.analyses.findMany({
+    return await db.query.analyses.findMany({
       where: eq(analyses.tenantId, tenantId),
       orderBy: desc(analyses.createdAt),
       with: {
         initiatedBy: true,
         dataset: true,
         webhookData: true
-      }
+      },
+      limit: limit
     });
-
-    if (limit) {
-      query.limit(limit);
-    }
-
-    return await query;
   }
 
   async updateAnalysisStatus(id: number, status: string, resultsPath?: string): Promise<any> {

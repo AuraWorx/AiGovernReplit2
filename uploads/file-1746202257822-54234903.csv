@@ -1,0 +1,11 @@
+ID,Gender,Ethnicity,Age,Location,Income,Credit_Score,Loan_Approved
+1,Male,White,34,NY,72000,690,1
+2,Female,Black,29,CA,55000,650,0
+3,Non-Binary,Hispanic,41,TX,80000,710,1
+4,Male,Asian,36,WA,62000,640,0
+5,Female,White,45,FL,91000,720,1
+6,Male,Black,50,IL,48000,600,0
+7,Female,Hispanic,28,CA,47000,670,0
+8,Male,White,33,TX,77000,690,1
+9,Non-Binary,Asian,39,NY,86000,730,1
+10,Female,Black,31,GA,50000,610,0

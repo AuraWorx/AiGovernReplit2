@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/main-layout";
 import FileUpload from "@/components/upload/file-upload";
+import { DocumentUpload } from "@/components/uploads/document-upload";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Table, 
@@ -24,7 +25,10 @@ import {
   FileText, 
   Eye, 
   Download, 
-  Loader2
+  Loader2,
+  FileJson,
+  File,
+  FileSpreadsheet
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -88,20 +92,40 @@ export default function UploadsPage() {
         })
     : [];
 
+  // Add upload type state
+  const [uploadType, setUploadType] = useState<"data" | "documents">("data");
+
   return (
     <MainLayout title="Data Uploads">
-      <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+      <Tabs defaultValue="data" value={uploadType} onValueChange={(v) => setUploadType(v as "data" | "documents")}>
         <div className="flex justify-between items-center mb-6">
           <TabsList>
-            <TabsTrigger value="all">All Files</TabsTrigger>
-            <TabsTrigger value="json">JSON</TabsTrigger>
-            <TabsTrigger value="csv">CSV</TabsTrigger>
+            <TabsTrigger value="data">Data Files</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent value={activeTab}>
+        <TabsContent value="data">
+          <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+            <div className="flex justify-between items-center mb-6">
+              <TabsList>
+                <TabsTrigger value="all">All Files</TabsTrigger>
+                <TabsTrigger value="json">JSON</TabsTrigger>
+                <TabsTrigger value="csv">CSV</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value={activeTab}>
+              <div className="grid grid-cols-1 gap-6">
+                <FileUpload onUploadComplete={handleFileUploadComplete} />
+              </div>
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+
+        <TabsContent value="documents">
           <div className="grid grid-cols-1 gap-6">
-            <FileUpload onUploadComplete={handleFileUploadComplete} />
+            <DocumentUpload onSuccess={handleFileUploadComplete} />
 
             <Card>
               <CardHeader>

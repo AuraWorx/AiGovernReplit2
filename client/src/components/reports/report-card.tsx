@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Dialog, 
   DialogContent, 
@@ -18,6 +19,7 @@ import {
   AlertTriangle, 
   XCircle, 
   Clock,
+  Copy,
   FileJson, 
   Eye, 
   Download, 
@@ -35,6 +37,7 @@ interface ReportCardProps {
 export default function ReportCard({ analysis }: ReportCardProps) {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("summary");
+  const { toast } = useToast();
 
   // Fetch full analysis details when details modal is opened
   const { data: analysisDetails, isLoading: isLoadingDetails } = useQuery({
