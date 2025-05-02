@@ -7,7 +7,7 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-import { API_BASE_URL } from "../config";
+import { API_BASE_URL } from "@/config";
 
 export async function apiRequest(
   method: string,
