@@ -5,21 +5,24 @@ WORKDIR /app
 # Copy package files and install all dependencies for building
 COPY package*.json ./
 COPY shared/ ./shared/
+COPY db/ ./db/
 
-# Install dependencies including devDependencies needed for build
+# Install ALL dependencies (including dev dependencies like esbuild)
 RUN npm install
 
-# Copy server source code and configuration
+# Copy ALL necessary source files, including vite.config.ts
 COPY server/ ./server/
 COPY tsconfig.json ./
 COPY drizzle.config.ts ./
+COPY vite.config.ts ./
 
-# Create a custom script to build the server
-RUN echo '#!/bin/sh\ncd /app\nesbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist' > /app/build-server.sh && \
-    chmod +x /app/build-server.sh
+# Instead of building with esbuild, we'll use tsc which handles paths better
+RUN npx tsc
+RUN cp -r shared/ dist/shared/
+RUN cp -r db/ dist/db/
 
-# Build the server
-RUN /app/build-server.sh
+# Create path mapping before running the application
+RUN echo '{"type":"module","imports":{"@db":"./db/index.js","@shared/*":"./shared/*"}}' > dist/package.json
 
 # Production stage
 FROM node:20-slim
@@ -33,8 +36,9 @@ COPY package*.json ./
 RUN npm install --production
 
 # Copy built files from build stage
-COPY --from=build /app/dist /app/dist
-COPY --from=build /app/shared /app/shared
+COPY --from=build /app/dist/ /app/
+COPY --from=build /app/db/ /app/db/
+COPY --from=build /app/shared/ /app/shared/
 
 # Create uploads directory
 RUN mkdir -p uploads
@@ -42,4 +46,4 @@ RUN mkdir -p uploads
 EXPOSE 5000
 
 ENV NODE_ENV=production
-CMD ["node", "dist/index.js"]
+CMD ["node", "index.js"]

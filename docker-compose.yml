@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Frontend service
   frontend:
@@ -9,9 +7,11 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_started
     networks:
       - ai_govern_network
+    restart: unless-stopped
 
   # Backend service
   backend:
@@ -21,7 +21,8 @@ services:
     ports:
       - "5000:5000"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       - DATABASE_URL=postgresql://ai_govern_user:ai_govern_password@postgres:5432/ai_govern
       - SESSION_SECRET=your_strong_session_secret
@@ -30,6 +31,7 @@ services:
       - uploads:/app/uploads
     networks:
       - ai_govern_network
+    restart: unless-stopped
 
   # PostgreSQL service
   postgres:
@@ -44,6 +46,12 @@ services:
       - "5432:5432"
     networks:
       - ai_govern_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_govern_user -d ai_govern"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 networks:
   ai_govern_network:
