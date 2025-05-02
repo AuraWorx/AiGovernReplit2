@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # Frontend service
+  frontend:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - ai_govern_network
+
+  # Backend service
+  backend:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://ai_govern_user:ai_govern_password@postgres:5432/ai_govern
+      - SESSION_SECRET=your_strong_session_secret
+      - NODE_ENV=production
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - ai_govern_network
+
+  # PostgreSQL service
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=ai_govern_user
+      - POSTGRES_PASSWORD=ai_govern_password
+      - POSTGRES_DB=ai_govern
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - ai_govern_network
+
+networks:
+  ai_govern_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  uploads:

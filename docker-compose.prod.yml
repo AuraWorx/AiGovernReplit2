@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # Frontend service
+  frontend:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    environment:
+      - VITE_API_URL=http://api.yourdomain.com
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - ai_govern_network
+
+  # Backend service
+  backend:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://ai_govern_user:ai_govern_password@your-rds-endpoint:5432/ai_govern
+      - SESSION_SECRET=${SESSION_SECRET}
+      - NODE_ENV=production
+    volumes:
+      - uploads:/app/uploads
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - ai_govern_network
+
+networks:
+  ai_govern_network:
+    driver: bridge
+
+volumes:
+  uploads:
