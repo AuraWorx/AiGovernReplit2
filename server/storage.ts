@@ -241,19 +241,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getActivities(tenantId: number, limit?: number): Promise<any[]> {
-    const query = db.query.activities.findMany({
+    return await db.query.activities.findMany({
       where: eq(activities.tenantId, tenantId),
       orderBy: desc(activities.createdAt),
       with: {
         user: true
-      }
+      },
+      ...(limit ? { limit } : {})
     });
-
-    if (limit) {
-      query.limit(limit);
-    }
-
-    return await query;
   }
 }
 
