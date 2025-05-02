@@ -7,17 +7,12 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-import { API_BASE_URL } from "@/config";
-
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  // Ensure URL is properly joined with API base URL if it's a relative path
-  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url.startsWith('/') ? url : `/${url}`}`;
-  
-  const res = await fetch(fullUrl, {
+  const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -34,11 +29,7 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const path = queryKey[0] as string;
-    // Ensure URL is properly joined with API base URL if it's a relative path
-    const fullUrl = path.startsWith('http') ? path : `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
-    
-    const res = await fetch(fullUrl, {
+    const res = await fetch(queryKey[0] as string, {
       credentials: "include",
     });
 
