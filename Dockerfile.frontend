@@ -24,8 +24,16 @@ COPY tailwind.config.ts .
 COPY postcss.config.js .
 COPY components.json .
 
+# Create build directories
+RUN mkdir -p /app/dist
+
 # Build the frontend (only the vite part, skip the server build)
 RUN npx vite build
+
+# List the build directories to confirm structure
+RUN echo "Listing build directories:" && \
+    ls -la /app/dist && \
+    ls -la /app/dist/public || echo "public directory not found"
 
 # Container doesn't need to run a server - it's just for building
 CMD ["echo", "Frontend build completed successfully. Container will now exit."] 

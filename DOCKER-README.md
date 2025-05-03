@@ -78,7 +78,35 @@ You can customize the deployment by modifying the environment variables in the `
 - `SESSION_SECRET`: Secret for session encryption
 - `NODE_ENV`: Application environment (production/development)
 
-## Troubleshooting Network Issues
+## Troubleshooting
+
+### Frontend Assets Not Found
+
+If you encounter an error like `Could not find the build directory: /app/server/public`:
+
+1. Run the included fix script in the backend container:
+   ```
+   docker-compose exec backend /bin/sh -c "sh /app/fix-frontend.sh"
+   ```
+
+2. Restart the backend container:
+   ```
+   docker-compose restart backend
+   ```
+
+3. If the issue persists, check the volume mapping:
+   ```
+   docker volume inspect aigovernreplit2_frontend-build
+   ```
+
+4. For a complete reset:
+   ```
+   docker-compose down
+   docker volume rm aigovernreplit2_frontend-build
+   docker-compose up -d --build
+   ```
+
+### Network Issues
 
 If you encounter network errors during the build process (especially with npm install):
 

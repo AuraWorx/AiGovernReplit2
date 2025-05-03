@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
     volumes:
-      - frontend-build:/app/dist
+      - frontend-build:/app/dist:rw
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -33,7 +33,7 @@ services:
       - ai-govern-network
     volumes:
       - uploads:/app/uploads
-      - frontend-build:/app/dist
+      - frontend-build:/app/dist:ro
     dns:
       - 8.8.8.8
       - 8.8.4.4

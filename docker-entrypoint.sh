@@ -10,20 +10,21 @@ echo "PostgreSQL is ready"
 
 # Check if frontend assets are available in the volume
 echo "Checking for frontend assets..."
-if [ ! -f "/app/dist/public/index.html" ]; then
-  echo "Warning: Frontend assets not found in the expected location."
-  echo "Checking if we need to build them locally..."
-  
-  # If we have the client directory, try to build the frontend
-  if [ -d "/app/client" ] && [ -f "/app/vite.config.ts" ]; then
-    echo "Building frontend assets locally..."
-    npx vite build
-  else
-    echo "Error: Cannot find frontend assets and cannot build them."
-    exit 1
-  fi
+if [ -f "/app/dist/public/index.html" ]; then
+  echo "Frontend assets found in /app/dist/public, copying to server/public..."
+  mkdir -p /app/server/public
+  cp -r /app/dist/public/* /app/server/public/
+elif [ -d "/app/client" ] && [ -f "/app/vite.config.ts" ]; then
+  echo "Building frontend assets locally..."
+  npx vite build
+  # Create server/public directory and copy the built assets there
+  mkdir -p /app/server/public
+  cp -r /app/dist/public/* /app/server/public/
+else
+  echo "Error: Cannot find frontend assets and cannot build them."
+  exit 1
 fi
-echo "Frontend assets are available"
+echo "Frontend assets are available in the correct location"
 
 # Run database migrations
 echo "Running database migrations..."
