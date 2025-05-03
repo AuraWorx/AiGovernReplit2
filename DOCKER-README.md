@@ -21,10 +21,10 @@ This README provides instructions for deploying the AI Govern application using 
    ```
 
    This will:
-   - Build the frontend and backend images
+   - Build the frontend assets (frontend container will exit after build)
    - Start the PostgreSQL database
    - Run database migrations
-   - Start all services
+   - Start the backend service that serves both API and frontend
 
 3. Initialize the database (first run only):
    ```
@@ -44,9 +44,10 @@ This README provides instructions for deploying the AI Govern application using 
 The application is split into three containers:
 
 1. **Frontend Container**:
-   - React/TypeScript application
-   - Build container only (doesn't serve content)
-   - Compiles frontend assets and places them in a shared volume
+   - Build-only container that compiles the React/TypeScript application
+   - Exits after building the frontend assets
+   - Places compiled assets in a shared volume
+   - Only restarts on failure, not meant to run continuously
 
 2. **Backend Container**:
    - Node.js/Express server
@@ -54,6 +55,7 @@ The application is split into three containers:
    - Handles API requests, authentication, and file processing
    - Serves the compiled frontend assets from the shared volume
    - Acts as the single entry point for the application
+   - Has fallback capability to build frontend assets if needed
 
 3. **PostgreSQL Container**:
    - Database for the application

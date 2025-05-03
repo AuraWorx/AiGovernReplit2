@@ -25,6 +25,13 @@ COPY db/ ./db/
 COPY drizzle.config.ts .
 COPY tsconfig.json .
 
+# Copy frontend-related files needed by the server
+COPY vite.config.ts .
+COPY tailwind.config.ts .
+COPY postcss.config.js .
+COPY components.json .
+COPY client/ ./client/
+
 # Copy entry point script
 COPY docker-entrypoint.sh .
 RUN chmod +x docker-entrypoint.sh

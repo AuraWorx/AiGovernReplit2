@@ -27,11 +27,5 @@ COPY components.json .
 # Build the frontend (only the vite part, skip the server build)
 RUN npx vite build
 
-# Expose port
-EXPOSE 3000
-
-# Set environment variables
-ENV NODE_ENV=production
-
-# Use a script for startup to allow for environment variables
-CMD ["npm", "start"] 
+# Container doesn't need to run a server - it's just for building
+CMD ["echo", "Frontend build completed successfully. Container will now exit."] 

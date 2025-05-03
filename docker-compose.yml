@@ -8,6 +8,11 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
+    # This service will exit after building, that's expected behavior
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
 
   backend:
     build:
@@ -22,6 +27,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      frontend:
+        condition: service_completed_successfully
     networks:
       - ai-govern-network
     volumes:
@@ -30,6 +37,7 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
+    restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
@@ -49,6 +57,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
 networks:
   ai-govern-network:
