@@ -32,8 +32,7 @@ This README provides instructions for deploying the AI Govern application using 
    ```
 
 4. Access the application:
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:5000/api
+   - Frontend and API: http://localhost:5000
 
 ## Default Login Credentials
 
@@ -46,13 +45,15 @@ The application is split into three containers:
 
 1. **Frontend Container**:
    - React/TypeScript application
-   - Runs on port 3000
-   - Built with Vite
+   - Build container only (doesn't serve content)
+   - Compiles frontend assets and places them in a shared volume
 
 2. **Backend Container**:
    - Node.js/Express server
    - Runs on port 5000
    - Handles API requests, authentication, and file processing
+   - Serves the compiled frontend assets from the shared volume
+   - Acts as the single entry point for the application
 
 3. **PostgreSQL Container**:
    - Database for the application
@@ -65,7 +66,7 @@ Data is persisted through Docker volumes:
 
 - `postgres-data`: Database files
 - `uploads`: User-uploaded files
-- `frontend-build`: Built frontend assets
+- `frontend-build`: Built frontend assets (shared between frontend and backend containers)
 
 ## Environment Variables
 

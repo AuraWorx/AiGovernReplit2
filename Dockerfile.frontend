@@ -24,8 +24,8 @@ COPY tailwind.config.ts .
 COPY postcss.config.js .
 COPY components.json .
 
-# Build the frontend
-RUN npm run build
+# Build the frontend (only the vite part, skip the server build)
+RUN npx vite build
 
 # Expose port
 EXPOSE 3000

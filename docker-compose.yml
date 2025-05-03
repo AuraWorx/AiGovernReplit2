@@ -3,14 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - BACKEND_URL=http://backend:5000
-    depends_on:
-      - backend
-    networks:
-      - ai-govern-network
     volumes:
       - frontend-build:/app/dist
     dns:
@@ -34,6 +26,7 @@ services:
       - ai-govern-network
     volumes:
       - uploads:/app/uploads
+      - frontend-build:/app/dist
     dns:
       - 8.8.8.8
       - 8.8.4.4
