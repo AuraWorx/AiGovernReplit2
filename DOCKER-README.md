@@ -28,7 +28,7 @@ This README provides instructions for deploying the AI Govern application using 
 
 3. Initialize the database (first run only):
    ```
-   docker-compose exec -e INIT_DB=true backend npm run db:seed
+   docker compose exec -e INIT_DB=true backend npm run db:seed
    ```
 
 4. Access the application:
@@ -79,6 +79,36 @@ You can customize the deployment by modifying the environment variables in the `
 - `NODE_ENV`: Application environment (production/development)
 
 ## Troubleshooting
+
+### Authentication and CORS Issues
+
+If you see 401 (Unauthorized) errors after logging in, especially when accessing via an IP address instead of localhost:
+
+1. We've modified the auth.ts file to handle CORS properly, but you may need to rebuild the backend:
+   ```
+   docker-compose down
+   docker-compose up -d --build
+   ```
+
+2. If accessing via IP/hostname, make sure your browser allows third-party cookies. Chrome's default settings may block these, which can cause authentication issues.
+
+3. For persistent issues, try using an incognito/private browser window which may have different cookie settings.
+
+4. If needed, you can manually edit server/auth.ts to further customize CORS settings for your environment.
+
+### PostgreSQL SSL Connection Issues
+
+If you see an error like `The server does not support SSL connections`, make sure your `DATABASE_URL` includes `?sslmode=disable`:
+
+```
+DATABASE_URL=postgresql://ai_govern_user:ai_govern_password@postgres:5432/ai_govern?sslmode=disable
+```
+
+Our Docker setup doesn't configure SSL for PostgreSQL by default. If you need SSL, you would need to:
+
+1. Add SSL certificates to the PostgreSQL container
+2. Configure PostgreSQL to use SSL in `postgresql.conf`
+3. Update the connection string to use `sslmode=require`
 
 ### Frontend Assets Not Found
 

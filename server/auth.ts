@@ -37,7 +37,9 @@ export function setupAuth(app: Express) {
     cookie: {
       maxAge: 1000 * 60 * 60 * 24, // 1 day
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      // Only use secure cookies in production without Docker
+      secure: false, // Disabled for Docker compatibility
+      sameSite: 'lax', // Allow cross-site requests
     }
   };
 
@@ -45,6 +47,24 @@ export function setupAuth(app: Express) {
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
+
+  // Add CORS headers for API requests
+  app.use((req, res, next) => {
+    // Add CORS headers on API routes
+    if (req.path.startsWith('/api')) {
+      res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization');
+    }
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    
+    next();
+  });
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
