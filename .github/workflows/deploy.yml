@@ -1,0 +1,184 @@
+# .github/workflows/deploy.yml
+name: Build, Test, and Deploy AiGovern to AWS
+
+on:
+  push:
+    branches:
+      - main
+      - develop # Trigger on pushes to the main branch
+  workflow_dispatch: # Allow manual triggering
+
+# Permissions needed for AWS OIDC authentication and potentially accessing GH Packages/ECR
+permissions:
+  id-token: write
+  contents: read
+  packages: write # If pushing to GitHub Packages Registry as well/instead of ECR
+
+# Define environment variables accessible across jobs
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }} # e.g., us-west-2
+  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }} # e.g., ai-govern-backend
+  ECS_CLUSTER: ${{ secrets.ECS_CLUSTER_NAME }} # e.g., ai-govern-prod
+  ECS_SERVICE: ${{ secrets.ECS_SERVICE_NAME }} # e.g., ai-govern-backend-service-prod
+  ECS_TASK_DEFINITION_FAMILY: ${{ secrets.ECS_TASK_DEFINITION_FAMILY }} # e.g., ai-govern-backend-prod
+  S3_FRONTEND_BUCKET: ${{ secrets.S3_FRONTEND_BUCKET }} # e.g., ai-govern-frontend-assets-prod
+  CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+
+jobs:
+  # ========================================
+  # Build, Test, and Push Job
+  # ========================================
+  build_test_push:
+    name: Build, Test & Push Image
+    runs-on: ubuntu-latest
+    environment: production # Or staging, links to secrets/variables
+
+    outputs:
+      image_uri: ${{ steps.build-image.outputs.image }} # Output the built image URI
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Check Typescript & Lint (Optional but Recommended)
+        run: |
+          npm run check
+          # npm run lint # Add linting script to package.json if you have one
+
+      # Add Unit/Integration Tests Here (Optional but Recommended)
+      # - name: Run Unit Tests
+      #   run: npm test
+
+      - name: Build Client and Server
+        run: npm run build
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, Tag, and Push Docker Image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }} # Use commit SHA for unique tag
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f Dockerfile.backend .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      # Upload Frontend Assets as Artifact (Optional - alternative to rebuilding in deploy job)
+      # - name: Archive Frontend Build Artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: frontend-dist
+      #     path: ./dist/public/
+
+  # ========================================
+  # Deploy Job
+  # ========================================
+  deploy:
+    name: Deploy to AWS
+    needs: build_test_push # Depends on the build job succeeding
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # --- Configure AWS Credentials ---
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # --- Deploy Frontend Assets ---
+      # Option 1: Rebuild frontend assets here (simpler setup)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install Frontend Dependencies
+        run: npm ci # Needs full install if rebuilding client
+      - name: Build Client Assets
+        run: npm run build:client
+
+      # Option 2: Download artifact (more efficient if build is complex)
+      # - name: Download Frontend Build Artifact
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: frontend-dist
+      #     path: ./dist/public/ # Download to the expected location
+
+      - name: Sync Frontend Assets to S3
+        run: |
+          aws s3 sync ./dist/public/ s3://${{ env.S3_FRONTEND_BUCKET }}/ --delete --cache-control max-age=31536000,public # Add cache headers
+
+      - name: Invalidate CloudFront Cache
+        run: |
+          aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+
+      # --- Run Database Migrations ---
+      - name: Get Database URL from Secrets Manager
+        id: get-db-url
+        run: |
+          DB_URL=$(aws secretsmanager get-secret-value --secret-id ${{ secrets.DB_URL_SECRET_ARN }} --query SecretString --output text)
+          echo "DATABASE_URL=$DB_URL" >> $GITHUB_ENV
+
+      - name: Run Drizzle Migrations
+        # Assumes Node.js and npm install were already done for frontend build
+        # If using artifact download, add Node setup and npm ci steps here
+        run: npm run db:migrate
+        env:
+           DATABASE_URL: ${{ env.DATABASE_URL }} # Pass secret to migration script
+
+      # --- Deploy Backend to ECS ---
+      # This step updates the ECS service to use the latest task definition revision
+      # which should ideally be updated (by Terraform or another process) to point
+      # to the new image URI from the build job.
+      # Alternatively, render a new task definition revision here.
+
+      # Option A: Update service (simpler if task def image is 'latest' or managed elsewhere)
+      - name: Update ECS Service (Force New Deployment)
+        run: |
+          echo "Updating ECS service ${{ env.ECS_SERVICE }} in cluster ${{ env.ECS_CLUSTER }} to force new deployment with latest task definition..."
+          aws ecs update-service --cluster ${{ env.ECS_CLUSTER }} --service ${{ env.ECS_SERVICE }} --force-new-deployment --region ${{ env.AWS_REGION }}
+          echo "Waiting for service deployment to stabilize..."
+          aws ecs wait services-stable --cluster ${{ env.ECS_CLUSTER }} --services ${{ env.ECS_SERVICE }} --region ${{ env.AWS_REGION }}
+
+      # Option B: Render Task Definition and Deploy (more explicit image update)
+      # - name: Download Task Definition Template (if stored in repo)
+      #   run: aws s3 cp s3://your-config-bucket/ecs/task-definition-template.json task-definition.json
+
+      # - name: Render ECS Task Definition
+      #   id: render-task-def
+      #   uses: aws-actions/amazon-ecs-render-task-definition@v1
+      #   with:
+      #     task-definition: task-definition.json # Path to your template file
+      #     container-name: ${{ secrets.ECS_CONTAINER_NAME }} # Name of the container in the task def
+      #     image: ${{ needs.build_test_push.outputs.image_uri }} # Use image from build job output
+
+      # - name: Deploy ECS Task Definition
+      #   uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      #   with:
+      #     task-definition: ${{ steps.render-task-def.outputs.taskDefinition }}
+      #     service: ${{ env.ECS_SERVICE }}
+      #     cluster: ${{ env.ECS_CLUSTER }}
+      #     wait-for-service-stability: true
