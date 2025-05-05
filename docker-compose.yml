@@ -21,7 +21,7 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - DATABASE_URL=postgresql://ai_govern_user:ai_govern_password@postgres:5432/ai_govern
+      - DATABASE_URL=postgresql://ai_govern_user:ai_govern_password@postgres:5432/ai_govern?sslmode=disable
       - SESSION_SECRET=your_strong_random_session_secret
       - NODE_ENV=production
     depends_on:
@@ -37,7 +37,7 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
-    restart: unless-stopped
+    restart: always
 
   postgres:
     image: postgres:16-alpine
