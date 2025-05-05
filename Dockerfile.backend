@@ -1,51 +1,53 @@
-FROM node:20-alpine
-
+# ---- Base Stage ----
+# Use a specific Node.js version matching your development/production environment
+FROM node:20-alpine AS base
 WORKDIR /app
-
-# Install netcat for network connectivity checks
-RUN apk add --no-cache netcat-openbsd
-
-# Copy package files and npm config
-COPY package*.json .npmrc ./
-
-# Install dependencies with retry logic and increased network timeout
-RUN npm config set registry https://registry.npmjs.org/ && \
-    npm config set fetch-retry-mintimeout 20000 && \
-    npm config set fetch-retry-maxtimeout 120000 && \
-    npm config set network-timeout 300000 && \
-    npm install --no-fund --loglevel verbose || \
-    (sleep 5 && npm install --no-fund --loglevel verbose) || \
-    (sleep 10 && npm install --no-fund --loglevel verbose)
-
-# Copy the rest of the backend code
-COPY server/ ./server/
-COPY shared/ ./shared/
-COPY types/ ./types/
-COPY db/ ./db/
-COPY drizzle.config.ts .
-COPY tsconfig.json .
-
-# Copy frontend-related files needed by the server
-COPY vite.config.ts .
-COPY tailwind.config.ts .
-COPY postcss.config.js .
-COPY components.json .
-COPY client/ ./client/
-
-# Create necessary directories
-RUN mkdir -p /app/uploads /app/server/public /app/dist/public
-
-# Copy entry point script and fix script
-COPY docker-entrypoint.sh .
-COPY fix-frontend.sh .
-RUN chmod +x docker-entrypoint.sh fix-frontend.sh
-
-# Expose port
-EXPOSE 5000
-
-# Set environment variables
+# Set NODE_ENV early
 ENV NODE_ENV=production
 
-# Use entry point script
-ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["npm", "run", "dev"] 
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# ---- Dependencies Stage ----
+# Install ALL dependencies needed for building server + running migrations/seeds if done in build
+FROM base AS deps
+RUN npm ci
+
+# ---- Builder Stage ----
+# Build the server application
+FROM deps AS builder
+# Copy all source code
+COPY . .
+# Generate Prisma client if used (example, remove if not using Prisma)
+# RUN npx prisma generate
+# Build the server code (TypeScript -> JavaScript)
+RUN npm run build:server
+
+# ---- Production Stage ----
+# Start from a clean base image
+FROM base AS production
+WORKDIR /app
+
+# Install ONLY production dependencies
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev --ignore-scripts
+
+# Copy necessary built artifacts and runtime files from builder stage
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+# Copy shared directory if it contains runtime code/types needed by the built server
+COPY --from=builder /app/shared ./shared
+# Copy migration files if migrations are run from within the container (less common for ECS)
+# COPY --from=builder /app/db/migrations ./db/migrations
+
+# Expose the port the application runs on
+EXPOSE 5000
+
+# Healthcheck (Optional but recommended for ECS)
+# Checks if the API health endpoint is responding correctly. Adjust path/port if needed.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:5000/api/health || exit 1
+
+# Default command to run the application
+# Uses the 'start' script defined in package.json (which should be `node dist/index.js`)
+CMD ["npm", "start"]
