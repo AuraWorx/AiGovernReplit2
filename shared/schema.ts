@@ -167,5 +167,3 @@ export const activitiesRelations = relations(activities, ({ one }) => ({
 }));
 
 export type Activity = typeof activities.$inferSelect;
-```
-**Important:** After applying these schema changes, run `npm run db:generate` to create the SQL migration file in `./db/migrations/`. This file needs to be executed against your RDS database (e.g., via the `db:migrate` script in your CI/CD pipelin
